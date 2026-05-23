@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🦸 Симулятор Супермена</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #000;
+  overflow: hidden;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  cursor: crosshair;
+}
+canvas { display: block; }
+
+#ui {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  padding: 15px 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.bar-container {
+  background: rgba(0,0,0,0.6);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  padding: 8px 14px;
+  min-width: 200px;
+}
+
+.bar-label {
+  color: #fff;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+.bar {
+  height: 8px;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.health-bar { background: linear-gradient(90deg, #e74c3c, #ff6b6b); }
+.energy-bar { background: linear-gradient(90deg, #3498db, #74b9ff); }
+.xp-bar { background: linear-gradient(90deg, #f39c12, #fdcb6e); }
+
+#score {
+  color: #fff;
+  font-size: 24px;
+  font-weight: bold;
+  text-shadow: 0 0 20px rgba(255,215,0,0.8);
+}
+
+#level {
+  color: #fdcb6e;
+  font-size: 14px;
+  text-align: center;
+}
+
+#controls {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255,255,255,0.6);
+  font-size: 12px;
+  text-align: center;
+  z-index: 10;
+  pointer-events: none;
+  background: rgba(0,0,0,0.4);
+  padding: 10px 20px;
+  border-radius: 10px;
+}
+
+#controls span {
+  display: inline-block;
+  background: rgba(255,255,255,0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin: 0 2px;
+  color: #fff;
+  font-weight: bold;
+}
+
+#message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 36px;
+  font-weight: bold;
+  text-shadow: 0 0 30px rgba(0,100,255,0.8);
+  z-index: 20;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+
+#startScreen {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, #1a1a3e 0%, #0a0a1a 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  cursor: default;
+}
+
+#startScreen h1 {
+  font-size: 64px;
+  color: #e74c3c;
+  text-shadow: 0 0 40px rgba(231,76,60,0.5), 0 0 80px rgba(231,76,60,0.3);
+  margin-bottom: 10px;
+}
+
+#startScreen .shield {
+  font-size: 120px;
+  margin-bottom: 20px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+#startScreen p {
+  color: rgba(255,255,255,0.6);
+  font-size: 16px;
+  margin-bottom: 30px;
+}
+
+#startBtn {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff;
+  border: none;
+  padding: 15px 50px;
+  font-size: 22px;
+  border-radius: 50px;
+  cursor: pointer;
+  font-weight: bold;
+  letter-spacing: 2px;
+  transition: all 0.3s;
+  pointer-events: all;
+}
+
+#startBtn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(231,76,60,0.6);
+}
+
+#minimap {
+  position: fixed;
+  bottom: 70px;
+  right: 20px;
+  width: 150px;
+  height: 150px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.5);
+  z-index: 10;
+  pointer-events: none;
+}
+
+#powerIndicator {
+  position: fixed;
+  bottom: 230px;
+  right: 20px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.power-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  margin-bottom: 8px;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+#gameOver {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  cursor: default;
+}
+
+#gameOver h1 { color: #e74c3c; font-size: 52px; margin-bottom: 10px; }
+#gameOver p { color: #fff; font-size: 20px; margin-bottom: 30px; }
+
+#restartBtn {
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  color: #fff;
+  border: none;
+  padding: 15px 50px;
+  font-size: 20px;
+  border-radius: 50px;
+  cursor: pointer;
+  font-weight: bold;
+}
+</style>
+</head>
+<body>
+
+<div id="startScreen">
+  <div class="shield">🛡️</div>
+  <h1>SUPERMAN</h1>
+  <p>Симулятор Человека из Стали</p>
+  <button id="startBtn" onclick="startGame()">▶ НАЧАТЬ</button>
+</div>
+
+<div id="gameOver">
+  <h1>GAME OVER</h1>
+  <p>Счёт: <span id="finalScore">0</span></p>
+  <button id="restartBtn" onclick="restartGame()">🔄 ЗАНОВО</button>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="ui">
+  <div>
+    <div class="bar-container">
+      <div class="bar-label">❤️ Здоровье</div>
+      <div style="width:100%;background:rgba(255,255,255,0.1);border-radius:4px;height:8px;">
+        <div class="bar health-bar" id="healthBar" style="width:100%"></div>
+      </div>
+    </div>
+    <div class="bar-container" style="margin-top:6px">
+      <div class="bar-label">⚡ Энергия</div>
+      <div style="width:100%;background:rgba(255,255,255,0.1);border-radius:4px;height:8px;">
+        <div class="bar energy-bar" id="energyBar" style="width:100%"></div>
+      </div>
+    </div>
+  </div>
+  <div style="text-align:center">
+    <div id="level">Уровень 1</div>
+    <div id="score">0</div>
+  </div>
+  <div class="bar-container" style="min-width:160px">
+    <div class="bar-label">⭐ Опыт</div>
+    <div style="width:100%;background:rgba(255,255,255,0.1);border-radius:4px;height:8px;">
+      <div class="bar xp-bar" id="xpBar" style="width:0%"></div>
+    </div>
+  </div>
+</div>
+
+<canvas id="minimap"></canvas>
+
+<div id="controls">
+  <span>W</span><span>A</span><span>S</span><span>D</span> — полёт &nbsp;|&nbsp;
+  <span>ЛКМ</span> — тепловое зрение &nbsp;|&nbsp;
+  <span>Пробел</span> — супер-удар &nbsp;|&nbsp;
+  <span>Shift</span> — супер-скорость &nbsp;|&nbsp;
+  <span>E</span> — заморозка дыханием
+</div>
+
+<div id="message"></div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const minimapCanvas = document.getElementById('minimap');
+const minimapCtx = minimapCanvas.getContext('2d');
+
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  minimapCanvas.width = 150;
+  minimapCanvas.height = 150;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- GAME STATE ---
+let gameRunning = false;
+let score = 0;
+let level = 1;
+let xp = 0;
+let xpNeeded = 100;
+
+const worldW = 4000;
+const worldH = 3000;
+
+let camera = { x: 0, y: 0 };
+
+let superman = {
+  x: worldW / 2,
+  y: worldH / 2,
+  vx: 0,
+  vy: 0,
+  health: 100,
+  maxHealth: 100,
+  energy: 100,
+  maxEnergy: 100,
+  speed: 4,
+  superSpeed: false,
+  flying: true,
+  angle: 0,
+  capeAngle: 0,
+  invincible: 0
+};
+
+let keys = {};
+let mouse = { x: 0, y: 0, down: false };
+let heatBeams = [];
+let freezeBreaths = [];
+let shockwaves = [];
+let particles = [];
+let enemies = [];
+let buildings = [];
+let clouds = [];
+let stars = [];
+let explosions = [];
+let powerUps = [];
+let floatingTexts = [];
+
+// --- GENERATE WORLD ---
+function generateWorld() {
+  buildings = [];
+  clouds = [];
+  stars = [];
+  enemies = [];
+  powerUps = [];
+
+  // Stars
+  for (let i = 0; i < 200; i++) {
+    stars.push({
+      x: Math.random() * worldW,
+      y: Math.random() * worldH * 0.3,
+      size: Math.random() * 2 + 0.5,
+      twinkle: Math.random() * Math.PI * 2
+    });
+  }
+
+  // Buildings
+  for (let i = 0; i < 80; i++) {
+    let w = 40 + Math.random() * 80;
+    let h = 60 + Math.random() * 180;
+    buildings.push({
+      x: Math.random() * (worldW - w),
+      y: worldH - h - 50 + Math.random() * 20,
+      w: w,
+      h: h,
+      color: `hsl(${210 + Math.random() * 30}, ${10 + Math.random() * 20}%, ${15 + Math.random() * 25}%)`,
+      windows: Math.floor(Math.random() * 8) + 2,
+      windowRows: Math.floor(Math.random() * 10) + 3,
+      damaged: false,
+      damageAmount: 0
+    });
+  }
+
+  // Clouds
+  for (let i = 0; i < 25; i++) {
+    clouds.push({
+      x: Math.random() * worldW,
+      y: 50 + Math.random() * 200,
+      w: 100 + Math.random() * 200,
+      h: 30 + Math.random() * 40,
+      speed: 0.2 + Math.random() * 0.5,
+      opacity: 0.3 + Math.random() * 0.4
+    });
+  }
+
+  // Enemies
+  spawnEnemies(15);
+
+  // Power-ups
+  for (let i = 0; i < 8; i++) {
+    powerUps.push({
+      x: Math.random() * worldW,
+      y: Math.random() * worldH,
+      type: ['health', 'energy', 'xp'][Math.floor(Math.random() * 3)],
+      collected: false,
+      bobPhase: Math.random() * Math.PI * 2
+    });
+  }
+}
+
+function spawnEnemies(count) {
+  for (let i = 0; i < count; i++) {
+    let type = Math.random();
+    let enemy;
+    if (type < 0.4) {
+      enemy = {
+        type: 'robot',
+        x: Math.random() * worldW,
+        y: Math.random() * worldH * 0.7 + 100,
+        vx: 0, vy: 0,
+        health: 30 + level * 5,
+        maxHealth: 30 + level * 5,
+        speed: 1.5 + level * 0.2,
+        size: 20,
+        color: '#8e44ad',
+        damage: 5,
+        attackCooldown: 0,
+        points: 50
+      };
+    } else if (type < 0.7) {
+      enemy = {
+        type: 'meteor',
+        x: Math.random() * worldW,
+        y: -50 - Math.random() * 300,
+        vx: (Math.random() - 0.5) * 3,
+        vy: 2 + Math.random() * 3,
+        health: 20,
+        maxHealth: 20,
+        speed: 3,
+        size: 15 + Math.random() * 15,
+        color: '#e67e22',
+        damage: 15,
+        attackCooldown: 0,
+        points: 30
+      };
+    } else {
+      enemy = {
+        type: 'lex',
+        x: Math.random() * worldW,
+        y: Math.random() * worldH * 0.5 + 200,
+        vx: 0, vy: 0,
+        health: 80 + level * 10,
+        maxHealth: 80 + level * 10,
+        speed: 1 + level * 0.1,
+        size: 18,
+        color: '#2ecc71',
+        damage: 10,
+        attackCooldown: 0,
+        points: 100,
+        shootTimer: 0
+      };
+    }
+    enemies.push(enemy);
+  }
+}
+
+// --- INPUT ---
+window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+window.addEventListener('mousedown', e => { mouse.down = true; });
+window.addEventListener('mouseup', e => { mouse.down = false; });
+
+// --- GAME LOOP ---
+function startGame() {
+  document.getElementById('startScreen').style.display = 'none';
+  gameRunning = true;
+  resetGame();
+  generateWorld();
+  gameLoop();
+}
+
+function restartGame() {
+  document.getElementById('gameOver').style.display = 'none';
+  gameRunning = true;
+  resetGame();
+  generateWorld();
+  gameLoop();
+}
+
+function resetGame() {
+  score = 0; level = 1; xp = 0; xpNeeded = 100;
+  superman.x = worldW / 2;
+  superman.y = worldH / 2;
+  superman.vx = 0; superman.vy = 0;
+  superman.health = 100; superman.energy = 100;
+  superman.invincible = 0;
+  heatBeams = []; freezeBreaths = [];
+  shockwaves = []; particles = [];
+  explosions = []; floatingTexts = [];
+  updateUI();
+}
+
+function gameLoop() {
+  if (!gameRunning) return;
+  update();
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+// --- UPDATE ---
+function update() {
+  let spd = superman.superSpeed ? superman.speed * 2.5 : superman.speed;
+
+  // Movement
+  let ax = 0, ay = 0;
+  if (keys['w'] || keys['ц'] || keys['arrowup']) ay = -1;
+  if (keys['s'] || keys['ы'] || keys['arrowdown']) ay = 1;
+  if (keys['a'] || keys['ф'] || keys['arrowleft']) ax = -1;
+  if (keys['d'] || keys['в'] || keys['arrowright']) ax = 1;
+
+  if (ax || ay) {
+    let len = Math.sqrt(ax * ax + ay * ay);
+    ax /= len; ay /= len;
+  }
+
+  superman.vx += ax * 0.5;
+  superman.vy += ay * 0.5;
+  superman.vx *= 0.92;
+  superman.vy *= 0.92;
+
+  superman.x += superman.vx * spd;
+  superman.y += superman.vy * spd;
+
+  superman.x = Math.max(20, Math.min(worldW - 20, superman.x));
+  superman.y = Math.max(20, Math.min(worldH - 20, superman.y));
+
+  // Angle to mouse
+  let worldMouseX = mouse.x + camera.x;
+  let worldMouseY = mouse.y + camera.y;
+  superman.angle = Math.atan2(worldMouseY - superman.y, worldMouseX - superman.x);
+
+  // Cape animation
+  superman.capeAngle = Math.sin(Date.now() * 0.005) * 0.3;
+
+  // Super speed
+  superman.superSpeed = keys['shift'];
+  if (superman.superSpeed) {
+    superman.energy -= 0.3;
+    // Speed trail particles
+    if (Math.random() < 0.5) {
+      particles.push({
+        x: superman.x - Math.cos(superman.angle) * 15,
+        y: superman.y - Math.sin(superman.angle) * 15,
+        vx: -superman.vx * 0.3 + (Math.random() - 0.5),
+        vy: -superman.vy * 0.3 + (Math.random() - 0.5),
+        life: 20,
+        maxLife: 20,
+        color: '#74b9ff',
+        size: 3
+      });
+    }
+  }
+
+  // Energy regen
+  if (!superman.superSpeed) {
+    superman.energy = Math.min(superman.maxEnergy, superman.energy + 0.15);
+  }
+
+  // Invincibility timer
+  if (superman.invincible > 0) superman.invincible--;
+
+  // Heat vision
+  if (mouse.down && superman.energy > 0.5) {
+    superman.energy -= 0.5;
+    let angle = superman.angle;
+    heatBeams.push({
+      x: superman.x + Math.cos(angle) * 20,
+      y: superman.y + Math.sin(angle) * 20,
+      angle: angle,
+      length: 25 + Math.random() * 15,
+      life: 8,
+      maxLife: 8,
+      damage: 3 + level * 0.5
+    });
+    // Eye glow particles
+    for (let i = 0; i < 2; i++) {
+      particles.push({
+        x: superman.x + Math.cos(angle) * 10,
+        y: superman.y + Math.sin(angle) * 10,
+        vx: Math.cos(angle) * 8 + (Math.random() - 0.5) * 3,
+        vy: Math.sin(angle) * 8 + (Math.random() - 0.5) * 3,
+        life: 15, maxLife: 15,
+        color: `hsl(${Math.random() * 20 + 5}, 100%, 60%)`,
+        size: 2 + Math.random() * 2
+      });
+    }
+  }
+
+  // Freeze breath
+  if (keys['e'] && superman.energy > 1) {
+    superman.energy -= 1;
+    freezeBreaths.push({
+      x: superman.x + Math.cos(superman.angle) * 15,
+      y: superman.y + Math.sin(superman.angle) * 15,
+      angle: superman.angle,
+      length: 20 + Math.random() * 10,
+      life: 12, maxLife: 12,
+      damage: 2 + level * 0.3
+    });
+  }
+
+  // Super punch (space)
+  if (keys[' '] && superman.energy > 10) {
+    superman.energy -= 10;
+    shockwaves.push({
+      x: superman.x,
+      y: superman.y,
+      radius: 10,
+      maxRadius: 120 + level * 10,
+      life: 25,
+      maxLife: 25,
+      damage: 25 + level * 3
+    });
+    showMessage('💥 СУПЕР-УДАР!');
+  }
+
+  // Update heat beams
+  heatBeams.forEach(b => {
+    b.life--;
+    // Check enemy hits
+    enemies.forEach(e => {
+      let dx = e.x - b.x;
+      let dy = e.y - b.y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+      let beamDx = Math.cos(b.angle);
+      let beamDy = Math.sin(b.angle);
+      let dot = dx * beamDx + dy * beamDy;
+      if (dot > 0 && dot < b.length) {
+        let perpDist = Math.abs(dx * beamDy - dy * beamDx);
+        if (perpDist < e.size + 5) {
+          e.health -= b.damage * 0.3;
+          if (Math.random() < 0.2) {
+            particles.push({
+              x: e.x, y: e.y,
+              vx: (Math.random() - 0.5) * 4,
+              vy: (Math.random() - 0.5) * 4,
+              life: 15, maxLife: 15,
+              color: '#e74c3c', size: 3
+            });
+          }
+        }
+      }
+    });
+  });
+  heatBeams = heatBeams.filter(b => b.life > 0);
+
+  // Update freeze breaths
+  freezeBreaths.forEach(b => {
+    b.life--;
+    enemies.forEach(e => {
+      let dx = e.x - b.x;
+      let dy = e.y - b.y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+      let beamDx = Math.cos(b.angle);
+      let beamDy = Math.sin(b.angle);
+      let dot = dx * beamDx + dy * beamDy;
+      if (dot > 0 && dot < b.length) {
+        let perpDist = Math.abs(dx * beamDy - dy * beamDx);
+        if (perpDist < e.size + 5) {
+          e.health -= b.damage * 0.2;
+          e.vx *= 0.9;
+          e.vy *= 0.9;
+        }
+      }
+    });
+  });
+  freezeBreaths = freezeBreaths.filter(b => b.life > 0);
+
+  // Update shockwaves
+  shockwaves.forEach(s => {
+    s.life--;
+    s.radius += (s.maxRadius - s.radius) * 0.15;
+    enemies.forEach(e => {
+      let dx = e.x - s.x;
+      let dy = e.y - s.y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+      if (Math.abs(dist - s.radius) < 20) {
+        e.health -= s.damage * 0.3;
+        let angle = Math.atan2(dy, dx);
+        e.vx += Math.cos(angle) * 8;
+        e.vy += Math.sin(angle) * 8;
+      }
+    });
+  });
+  shockwaves = shockwaves.filter(s => s.life > 0);
+
+  // Update enemies
+  enemies.forEach(e => {
+    if (e.type === 'meteor') {
+      e.x += e.vx;
+      e.y += e.vy;
+      e.vy += 0.02;
+    } else {
+      let dx = superman.x - e.x;
+      let dy = superman.y - e.y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 50) {
+        e.vx += (dx / dist) * e.speed * 0.05;
+        e.vy += (dy / dist) * e.speed * 0.05;
+      }
+      e.vx *= 0.95;
+      e.vy *= 0.95;
+      e.x += e.vx;
+      e.y += e.vy;
+
+      // Shooting for lex
+      if (e.type === 'lex') {
+        e.shootTimer++;
+        if (e.shootTimer > 60 && dist < 400) {
+          e.shootTimer = 0;
+          let angle = Math.atan2(dy, dx);
+          particles.push({
+            x: e.x, y: e.y,
+            vx: Math.cos(angle) * 6,
+            vy: Math.sin(angle) * 6,
+            life: 60, maxLife: 60,
+            color: '#2ecc71',
+            size: 4,
+            enemy: true,
+            damage: e.damage
+          });
+        }
+      }
+    }
+
+    // Damage superman on contact
+    let dx = superman.x - e.x;
+    let dy = superman.y - e.y;
+    let dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < e.size + 15 && superman.invincible <= 0) {
+      superman.health -= e.damage;
+      superman.invincible = 30;
+      let angle = Math.atan2(dy, dx);
+      superman.vx += Math.cos(angle) * 3;
+      superman.vy += Math.sin(angle) * 3;
+      addFloatingText(superman.x, superman.y - 30, `-${e.damage}`, '#e74c3c');
+    }
+  });
+
+  // Enemy particles damage
+  particles.forEach(p => {
+    if (p.enemy) {
+      let dx = superman.x - p.x;
+      let dy = superman.y - p.y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 15 && superman.invincible <= 0) {
+        superman.health -= p.damage;
+        superman.invincible = 20;
+        p.life = 0;
+        addFloatingText(superman.x, superman.y - 30, `-${p.damage}`, '#e74c3c');
+      }
+    }
+  });
+
+  // Remove dead enemies
+  enemies.forEach(e => {
+    if (e.health <= 0 && !e.dead) {
+      e.dead = true;
+      score += e.points;
+      xp += e.points / 2;
+      addFloatingText(e.x, e.y - 20, `+${e.points}`, '#fdcb6e');
+      // Explosion
+      for (let i = 0; i < 20; i++) {
+        let angle = Math.random() * Math.PI * 2;
+        let speed = Math.random() * 5 + 2;
+        particles.push({
+          x: e.x, y: e.y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 30 + Math.random() * 20,
+          maxLife: 50,
+          color: e.type === 'meteor' ? '#e67e22' : e.type === 'lex' ? '#2ecc71' : '#8e44ad',
+          size: 2 + Math.random() * 4
+        });
+      }
+      explosions.push({ x: e.x, y: e.y, radius: 0, maxRadius: 60, life: 20, maxLife: 20 });
+
+      // Check level up
+      if (xp >= xpNeeded) {
+        level++;
+        xp -= xpNeeded;
+        xpNeeded = Math.floor(xpNeeded * 1.5);
+        superman.maxHealth += 10;
+        superman.health = superman.maxHealth;
+        superman.maxEnergy += 5;
+        superman.energy = superman.maxEnergy;
+        showMessage(`⬆️ УРОВЕНЬ ${level}!`);
+        // Respawn enemies
+        spawnEnemies(5 + level * 2);
+      }
+    }
+  });
+  enemies = enemies.filter(e => !e.dead);
+
+  // Remove off-screen meteors
+  enemies = enemies.filter(e => {
+    if (e.type === 'meteor' && e.y > worldH + 100) return false;
+    return true;
+  });
+
+  // Update particles
+  particles.forEach(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vx *= 0.98;
+    p.vy *= 0.98;
+    p.life--;
+  });
+  particles = particles.filter(p => p.life > 0);
+
+  // Update explosions
+  explosions.forEach(e => {
+    e.life--;
+    e.radius += (e.maxRadius - e.radius) * 0.2;
+  });
+  explosions = explosions.filter(e => e.life > 0);
+
+  // Update floating texts
+  floatingTexts.forEach(t => {
+    t.y -= 1;
+    t.life--;
+  });
+  floatingTexts = floatingTexts.filter(t => t.life > 0);
+
+  // Update power-ups
+  powerUps.forEach(p => {
+    p.bobPhase += 0.05;
+    let dx = superman.x - p.x;
+    let dy = superman.y - p.y;
+    let dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 30 && !p.collected) {
+      p.collected = true;
+      if (p.type === 'health') {
+        superman.health = Math.min(superman.maxHealth, superman.health + 30);
+        addFloatingText(p.x, p.y - 20, '+30 HP', '#e74c3c');
+      } else if (p.type === 'energy') {
+        superman.energy = Math.min(superman.maxEnergy, superman.energy + 40);
+        addFloatingText(p.x, p.y - 20, '+40 EN', '#3498db');
+      } else if (p.type === 'xp') {
+        xp += 50;
+        addFloatingText(p.x, p.y - 20, '+50 XP', '#f39c12');
+      }
+    }
+  });
+  powerUps = powerUps.filter(p => !p.collected);
+
+  // Spawn new meteors periodically
+  if (Math.random() < 0.01 + level * 0.005) {
+    enemies.push({
+      type: 'meteor',
+      x: superman.x + (Math.random() - 0.5) * 600,
+      y: -50,
+      vx: (Math.random() - 0.5) * 2,
+      vy: 2 + Math.random() * 3,
+      health: 20, maxHealth: 20,
+      speed: 3, size: 15 + Math.random() * 15,
+      color: '#e67e22', damage: 15,
+      attackCooldown: 0, points: 30
+    });
+  }
+
+  // Clouds move
+  clouds.forEach(c => {
+    c.x += c.speed;
+    if (c.x > worldW + 200) c.x = -200;
+  });
+
+  // Camera
+  camera.x += (superman.x - W / 2 - camera.x) * 0.1;
+  camera.y += (superman.y - H / 2 - camera.y) * 0.1;
+
+  // Game over
+  if (superman.health <= 0) {
+    superman.health = 0;
+    gameRunning = false;
+    document.getElementById('finalScore').textContent = score;
+    document.getElementById('gameOver').style.display = 'flex';
+  }
+
+  updateUI();
+}
+
+function addFloatingText(x, y, text, color) {
+  floatingTexts.push({ x, y, text, color, life: 60, maxLife: 60 });
+}
+
+function showMessage(text) {
+  let el = document.getElementById('message');
+  el.textContent = text;
+  el.style.opacity = 1;
+  setTimeout(() => el.style.opacity = 0, 1500);
+}
+
+function updateUI() {
+  document.getElementById('healthBar').style.width = (superman.health / superman.maxHealth * 100) + '%';
+  document.getElementById('energyBar').style.width = (superman.energy / superman.maxEnergy * 100) + '%';
+  document.getElementById('xpBar').style.width = (xp / xpNeeded * 100) + '%';
+  document.getElementById('score').textContent = score;
+  document.getElementById('level').textContent = `Уровень ${level}`;
+}
+
+// --- RENDER ---
+function render() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Sky gradient (night/dusk)
+  let skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+  skyGrad.addColorStop(0, '#0a0a2e');
+  skyGrad.addColorStop(0.4, '#1a1a4e');
+  skyGrad.addColorStop(1, '#2d1b4e');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.translate(-camera.x, -camera.y);
+
+  // Stars
+  stars.forEach(s => {
+    let twinkle = Math.sin(Date.now() * 0.003 + s.twinkle) * 0.5 + 0.5;
+    ctx.fillStyle = `rgba(255,255,255,${twinkle * 0.8})`;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Clouds
+  clouds.forEach(c => {
+    ctx.fillStyle = `rgba(255,255,255,${c.opacity * 0.3})`;
+    ctx.beginPath();
+    ctx.ellipse(c.x, c.y, c.w / 2, c.h / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(c.x - c.w * 0.25, c.y + 5, c.w * 0.3, c.h * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(c.x + c.w * 0.25, c.y + 3, c.w * 0.35, c.h * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Ground
+  let groundY = worldH - 50;
+  let groundGrad = ctx.createLinearGradient(0, groundY, 0, worldH);
+  groundGrad.addColorStop(0, '#1a3a1a');
+  groundGrad.addColorStop(1, '#0d1f0d');
+  ctx.fillStyle = groundGrad;
+  ctx.fillRect(0, groundY, worldW, 50);
+
+  // Roads
+  ctx.fillStyle = '#333';
+  ctx.fillRect(0, groundY - 3, worldW, 6);
+  ctx.setLineDash([20, 20]);
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, groundY);
+  ctx.lineTo(worldW, groundY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Buildings
+  buildings.forEach(b => {
+    // Building body
+    ctx.fillStyle = b.color;
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+
+    // Building border
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(b.x, b.y, b.w, b.h);
+
+    // Windows
+    let winW = 8, winH = 10;
+    let gapX = (b.w - b.windows * winW) / (b.windows + 1);
+    let gapY = (b.h - b.windowRows * winH) / (b.windowRows + 1);
+    for (let row = 0; row < b.windowRows; row++) {
+      for (let col = 0; col < b.windows; col++) {
+        let wx = b.x + gapX + col * (winW + gapX);
+        let wy = b.y + gapY + row * (winH + gapY);
+        let lit = Math.random() > 0.3;
+        ctx.fillStyle = lit ? `rgba(255,${200 + Math.random() * 55},${100 + Math.random() * 50},0.8)` : 'rgba(0,0,0,0.3)';
+        ctx.fillRect(wx, wy, winW, winH);
+      }
+    }
+
+    // Damage
+    if (b.damaged) {
+      ctx.fillStyle = 'rgba(255,100,0,0.3)';
+      ctx.fillRect(b.x, b.y, b.w * b.damageAmount, b.h);
+    }
+  });
+
+  // Explosions
+  explosions.forEach(e => {
+    let alpha = e.life / e.maxLife;
+    ctx.fillStyle = `rgba(255,${150 + Math.random() * 50},0,${alpha * 0.3})`;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Power-ups
+  powerUps.forEach(p => {
+    let bobY = Math.sin(p.bobPhase) * 5;
+    let glow = Math.sin(p.bobPhase * 2) * 0.3 + 0.7;
+    ctx.save();
+    ctx.translate(p.x, p.y + bobY);
+
+    // Glow
+    let glowColor = p.type === 'health' ? 'rgba(231,76,60,' : p.type === 'energy' ? 'rgba(52,152,219,' : 'rgba(243,156,18,';
+    ctx.fillStyle = glowColor + (glow * 0.3) + ')';
+    ctx.beginPath();
+    ctx.arc(0, 0, 20, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Icon
+    ctx.fillStyle = p.type === 'health' ? '#e74c3c' : p.type === 'energy' ? '#3498db' : '#f39c12';
+    ctx.beginPath();
+    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.type === 'health' ? '❤️' : p.type === 'energy' ? '⚡' : '⭐', 0, 0);
+
+    ctx.restore();
+  });
+
+  // Enemies
+  enemies.forEach(e => {
+    ctx.save();
+    ctx.translate(e.x, e.y);
+
+    if (e.type === 'robot') {
+      // Robot body
+      ctx.fillStyle = e.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, e.size, 0, Math.PI * 2);
+      ctx.fill();
+      // Eye
+      ctx.fillStyle = '#e74c3c';
+      ctx.beginPath();
+      ctx.arc(Math.cos(superman.angle) * 5, Math.sin(superman.angle) * 5, 4, 0, Math.PI * 2);
+      ctx.fill();
+      // Antenna
+      ctx.strokeStyle = '#aaa';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -e.size);
+      ctx.lineTo(0, -e.size - 10);
+      ctx.stroke();
+      ctx.fillStyle = '#e74c3c';
+      ctx.beginPath();
+      ctx.arc(0, -e.size - 10, 3, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (e.type === 'meteor') {
+      // Meteor
+      ctx.fillStyle = e.color;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        let angle = (i / 8) * Math.PI * 2;
+        let r = e.size * (0.7 + Math.random() * 0.3);
+        if (i === 0) ctx.moveTo(Math.cos(angle) * r, Math.sin(angle) * r);
+        else ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+      }
+      ctx.closePath();
+      ctx.fill();
+      // Fire trail
+      ctx.fillStyle = 'rgba(255,100,0,0.5)';
+      ctx.beginPath();
+      ctx.arc(-e.vx * 3, -e.vy * 3, e.size * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (e.type === 'lex') {
+      // Lex Luthor
+      ctx.fillStyle = e.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, e.size, 0, Math.PI * 2);
+      ctx.fill();
+      // Bald head shine
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.beginPath();
+      ctx.arc(-3, -5, 5, 0, Math.PI * 2);
+      ctx.fill();
+      // Suit
+      ctx.fillStyle = '#8e44ad';
+      ctx.fillRect(-e.size * 0.6, e.size * 0.3, e.size * 1.2, e.size * 0.8);
+      // Evil eyes
+      ctx.fillStyle = '#e74c3c';
+      ctx.beginPath();
+      ctx.arc(-4, -2, 2, 0, Math.PI * 2);
+      ctx.arc(4, -2, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Health bar
+    if (e.health < e.maxHealth) {
+      let barW = e.size * 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(-barW / 2, -e.size - 12, barW, 4);
+      ctx.fillStyle = '#e74c3c';
+      ctx.fillRect(-barW / 2, -e.size - 12, barW * (e.health / e.maxHealth), 4);
+    }
+
+    ctx.restore();
+  });
+
+  // Freeze breaths
+  freezeBreaths.forEach(b => {
+    let alpha = b.life / b.maxLife;
+    ctx.strokeStyle = `rgba(150,220,255,${alpha * 0.6})`;
+    ctx.lineWidth = 8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(b.x + Math.cos(b.angle) * b.length, b.y + Math.sin(b.angle) * b.length);
+    ctx.stroke();
+
+    ctx.strokeStyle = `rgba(200,240,255,${alpha * 0.8})`;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(b.x + Math.cos(b.angle) * b.length, b.y + Math.sin(b.angle) * b.length);
+    ctx.stroke();
+  });
+
+  // Heat beams
+  heatBeams.forEach(b => {
+    let alpha = b.life / b.maxLife;
+    ctx.strokeStyle = `rgba(255,50,0,${alpha * 0.6})`;
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(b.x + Math.cos(b.angle) * b.length, b.y + Math.sin(b.angle) * b.length);
+    ctx.stroke();
+
+    ctx.strokeStyle = `rgba(255,200,50,${alpha * 0.9})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(b.x + Math.cos(b.angle) * b.length, b.y + Math.sin(b.angle) * b.length);
+    ctx.stroke();
+  });
+
+  // Shockwaves
+  shockwaves.forEach(s => {
+    let alpha = s.life / s.maxLife;
+    ctx.strokeStyle = `rgba(255,255,255,${alpha * 0.8})`;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = `rgba(100,200,255,${alpha * 0.5})`;
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.radius * 0.9, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  // Particles
+  particles.forEach(p => {
+    if (p.enemy) {
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      let alpha = p.life / p.maxLife;
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  });
+
+  // Superman
+  ctx.save();
+  ctx.translate(superman.x, superman.y);
+
+  // Invincibility flash
+  if (superman.invincible > 0 && Math.floor(superman.invincible / 3) % 2 === 0) {
+    ctx.globalAlpha = 0.5;
+  }
+
+  // Speed aura
+  if (superman.superSpeed) {
+    ctx.fillStyle = 'rgba(100,180,255,0.15)';
+    ctx.beginPath();
+    ctx.arc(0, 0, 30, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(100,180,255,0.3)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 25 + Math.sin(Date.now() * 0.01) * 5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  let a = superman.angle;
+
+  // Cape
+  ctx.save();
+  ctx.rotate(a);
+  let capeWave = Math.sin(Date.now() * 0.008) * 8;
+  ctx.fillStyle = '#c0392b';
+  ctx.beginPath();
+  ctx.moveTo(-5, -5);
+  ctx.quadraticCurveTo(-25, capeWave - 5, -35, capeWave * 1.5);
+  ctx.quadraticCurveTo(-20, capeWave * 0.5, -5, 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Body
+  ctx.fillStyle = '#2980b9';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 12, 8, a, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Chest emblem (S shield)
+  ctx.fillStyle = '#f1c40f';
+  ctx.beginPath();
+  ctx.moveTo(Math.cos(a) * 3, Math.sin(a) * 3 - 3);
+  ctx.lineTo(Math.cos(a) * 3 + 5, Math.sin(a) * 3);
+  ctx.lineTo(Math.cos(a) * 3, Math.sin(a) * 3 + 3);
+  ctx.lineTo(Math.cos(a) * 3 - 5, Math.sin(a) * 3);
+  ctx.closePath();
+  ctx.fill();
+
+  // Head
+  ctx.fillStyle = '#f5c6a0';
+  ctx.beginPath();
+  ctx.arc(Math.cos(a) * 10, Math.sin(a) * 10, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hair curl
+  ctx.fillStyle = '#2c3e50';
+  ctx.beginPath();
+  let hairX = Math.cos(a) * 10 + Math.cos(a + 1.5) * 4;
+  let hairY = Math.sin(a) * 10 + Math.sin(a + 1.5) * 4;
+  ctx.arc(hairX, hairY, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eyes glow when using heat vision
+  if (mouse.down) {
+    ctx.fillStyle = 'rgba(255,50,0,0.8)';
+    ctx.beginPath();
+    ctx.arc(Math.cos(a) * 13, Math.sin(a) * 13 - 2, 2, 0, Math.PI * 2);
+    ctx.arc(Math.cos(a) * 13, Math.sin(a) * 13 + 2, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eye beams origin
+    ctx.fillStyle = 'rgba(255,100,0,0.6)';
+    ctx.beginPath();
+    ctx.arc(Math.cos(a) * 16, Math.sin(a) * 16, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Flying pose - arms extended
+  ctx.strokeStyle = '#f5c6a0';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(Math.cos(a) * 8, Math.sin(a) * 8 - 5);
+  ctx.lineTo(Math.cos(a) * 18, Math.sin(a) * 18 - 8);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(Math.cos(a) * 8, Math.sin(a) * 8 + 5);
+  ctx.lineTo(Math.cos(a) * 18, Math.sin(a) * 18 + 8);
+  ctx.stroke();
+
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Floating texts
+  floatingTexts.forEach(t => {
+    let alpha = t.life / t.maxLife;
+    ctx.fillStyle = t.color;
+    ctx.globalAlpha = alpha;
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(t.text, t.x, t.y);
+    ctx.globalAlpha = 1;
+  });
+
+  ctx.restore();
+
+  // Vignette
+  let vignette = ctx.createRadialGradient(W / 2, H / 2, W * 0.3, W / 2, H / 2, W * 0.8);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.4)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, W, H);
+
+  // Damage overlay
+  if (superman.invincible > 0) {
+    ctx.fillStyle = `rgba(255,0,0,${superman.invincible / 60 * 0.2})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // Minimap
+  renderMinimap();
+}
+
+function renderMinimap() {
+  minimapCtx.clearRect(0, 0, 150, 150);
+  minimapCtx.fillStyle = 'rgba(10,10,30,0.8)';
+  minimapCtx.fillRect(0, 0, 150, 150);
+
+  let scaleX = 150 / worldW;
+  let scaleY = 150 / worldH;
+
+  // Buildings
+  minimapCtx.fillStyle = 'rgba(100,100,150,0.4)';
+  buildings.forEach(b => {
+    minimapCtx.fillRect(b.x * scaleX, b.y * scaleY, Math.max(1, b.w * scaleX), Math.max(1, b.h * scaleY));
+  });
+
+  // Enemies
+  enemies.forEach(e => {
+    minimapCtx.fillStyle = e.type === 'robot' ? '#8e44ad' : e.type === 'meteor' ? '#e67e22' : '#2ecc71';
+    minimapCtx.beginPath();
+    minimapCtx.arc(e.x * scaleX, e.y * scaleY, 2, 0, Math.PI * 2);
+    minimapCtx.fill();
+  });
+
+  // Power-ups
+  powerUps.forEach(p => {
+    if (!p.collected) {
+      minimapCtx.fillStyle = '#f39c12';
+      minimapCtx.beginPath();
+      minimapCtx.arc(p.x * scaleX, p.y * scaleY, 2, 0, Math.PI * 2);
+      minimapCtx.fill();
+    }
+  });
+
+  // Superman
+  minimapCtx.fillStyle = '#3498db';
+  minimapCtx.beginPath();
+  minimapCtx.arc(superman.x * scaleX, superman.y * scaleY, 3, 0, Math.PI * 2);
+  minimapCtx.fill();
+  minimapCtx.strokeStyle = '#fff';
+  minimapCtx.lineWidth = 1;
+  minimapCtx.stroke();
+
+  // Camera view
+  minimapCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+  minimapCtx.strokeRect(camera.x * scaleX, camera.y * scaleY, W * scaleX, H * scaleY);
+}
+
+// Initial render
+ctx.fillStyle = '#0a0a2e';
+ctx.fillRect(0, 0, W, H);
+</script>
+</body>
+</html>
